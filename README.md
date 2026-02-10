@@ -1,36 +1,180 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WCP Deck Builder
+
+A web app to generate customized WalletConnect Pay proposal decks with auto-generated Mermaid sequence diagrams.
+
+🔗 **Live App:** https://wcp-deck-builder.vercel.app/
+
+---
+
+## Features
+
+- 🎨 **Dynamic Title Slides** — Text, auto-fetched logo, or manual upload
+- 📊 **Auto-generated Diagrams** — Transaction flow, off-ramp flow, merchant KYB
+- 📝 **Template-based Generation** — Copies and customizes Google Slides templates
+- 🔐 **Google OAuth** — Creates decks directly in user's Drive
+- ⚡ **Instant Preview** — See diagrams and title slide before generating
+
+---
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Diagrams:** Mermaid.js
+- **APIs:** Google Slides API, Google Drive API
+- **Deployment:** Vercel
+
+---
+
+## Project Structure
+
+```
+├── app/
+│   ├── layout.tsx          # Root layout
+│   ├── page.tsx            # Main app page
+│   └── globals.css         # Global styles
+├── components/
+│   ├── Icons.tsx           # SVG icons & WC logo
+│   ├── FallbackImg.tsx     # Image with fallback sources
+│   ├── DiagramPanel.tsx    # Reusable diagram viewer
+│   ├── ClientLogoSection.tsx   # Logo picker UI
+│   └── TitleSlidePreview.tsx   # Title slide preview
+├── lib/
+│   ├── config.ts           # App config, client types, templates
+│   ├── types.ts            # TypeScript interfaces
+│   ├── utils.ts            # Helper functions
+│   ├── diagrams.ts         # Mermaid diagram generators
+│   └── googleApi.ts        # Google auth, Drive, Slides API
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- Google Cloud Console project with OAuth credentials
+- Google Slides templates (see [Template Setup](#template-setup))
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/CapuccinoFroth/wcp-deck-builder.git
+cd wcp-deck-builder
+
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+No `.env` file needed — the Google OAuth client ID is in `lib/config.ts`.
 
-## Learn More
+To use your own Google Cloud project:
 
-To learn more about Next.js, take a look at the following resources:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use existing)
+3. Enable **Google Slides API** and **Google Drive API**
+4. Create OAuth 2.0 credentials (Web application)
+5. Add authorized JavaScript origins:
+   - `http://localhost:3000` (development)
+   - `https://your-domain.vercel.app` (production)
+6. Update `clientId` in `lib/config.ts`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Template Setup
 
-## Deploy on Vercel
+The app uses Google Slides templates with placeholders:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Text Placeholders (replaced with text)
+| Placeholder | Replaced With |
+|-------------|---------------|
+| `{{PSP_NAME}}` | Client name |
+| `{{PSP_name}}` | Client name |
+| `{{local_curr}}` | Local currency |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Image Placeholders (replaced with images)
+| Placeholder | Replaced With |
+|-------------|---------------|
+| `[[IMG:CLIENT_LOGO]]` | Client logo or text image |
+| `[[IMG:DIAGRAM_TRNXFLOW]]` | Transaction flow diagram |
+| `[[IMG:DIAGRAM_OFFRAMPFLOW]]` | Off-ramp flow diagram |
+| `[[IMG:DIAGRAM_MERCHANTKYBFLOW]]` | Merchant KYB diagram |
+
+**Important:** Image placeholders must be inside **shapes** (Insert → Shape → Rectangle), not text boxes.
+
+### Template IDs
+
+Update template IDs in `lib/config.ts`:
+
+```typescript
+templates: {
+  type1: 'YOUR_TYPE1_TEMPLATE_ID',
+  type2: 'YOUR_TYPE2_TEMPLATE_ID',
+}
+```
+
+Templates must be shared as "Anyone with the link" (Viewer access).
+
+---
+
+## Deployment
+
+### Vercel (Recommended)
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+```
+
+Or connect your GitHub repo to Vercel for automatic deployments.
+
+### Other Platforms
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+---
+
+## Usage Guide
+
+For end-user documentation on how to use the app, see [USAGE.md](./USAGE.md).
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+MIT
+
+---
+
+## Contact
+
+Built by the WalletConnect Solutions Engineering team.
