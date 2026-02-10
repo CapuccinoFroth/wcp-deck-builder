@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Icons } from '@/components/Icons';
 import { DiagramPanel } from '@/components/DiagramPanel';
 import { ClientLogoSection } from '@/components/ClientLogoSection';
-import { TitleSlidePreview } from '@/components/TitleSlidePreview';
+
 import { CLIENT_TYPES, TEMPLATE_LABELS } from '@/lib/config';
 import { TitleMode, GoogleUser, ViewMode } from '@/lib/types';
 import { getLogoSources, extractDomain, removeBackground, svgToPngBlob } from '@/lib/utils';
@@ -234,8 +234,6 @@ export default function WCPDeckBuilder() {
               {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
               {createdDeckUrl && <p className="text-green-400 text-sm mt-2">✓ Deck created with {titleMode === 'text' ? 'text title' : 'logo'}!</p>}
             </div>
-
-            <TitleSlidePreview clientName={clientName} titleMode={titleMode} fetchedLogo={fetchedLogo} processedLogo={processedLogo} onLogoFailed={() => { setTitleMode('text'); setFetchedLogo(null); }} />
 
             <DiagramPanel title="Transaction Flow" expanded={expanded.tx} onToggleExpand={() => setExpanded({ ...expanded, tx: !expanded.tx })} viewMode={viewMode.tx} onViewModeChange={(m) => setViewMode({ ...viewMode, tx: m })} svgContent={txSvg} mermaidCode={generateTxFlowDiagram(diagramParams)} clientName={clientName} filename="transaction-flow" copied={copied.tx} onCopy={() => copyCode(generateTxFlowDiagram(diagramParams), 'tx')} />
             <DiagramPanel title="Off-Ramp Flow" expanded={expanded.offramp} onToggleExpand={() => setExpanded({ ...expanded, offramp: !expanded.offramp })} viewMode={viewMode.offramp} onViewModeChange={(m) => setViewMode({ ...viewMode, offramp: m })} svgContent={offrampSvg} mermaidCode={generateOffRampDiagram(diagramParams)} clientName={clientName} filename="offramp-flow" copied={copied.offramp} onCopy={() => copyCode(generateOffRampDiagram(diagramParams), 'offramp')} />
