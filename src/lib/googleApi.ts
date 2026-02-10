@@ -1,7 +1,7 @@
 // lib/googleApi.ts
 
 import { CONFIG, getTemplateId } from './config';
-import { GoogleUser } from './types';
+import { GoogleUser, TitleMode } from './types';
 
 export async function fetchUserInfo(token: string): Promise<GoogleUser> {
   const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -49,6 +49,70 @@ export async function uploadImageToDrive(
   return id;
 }
 
+// Convert base64 data URL to Blob
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+// Generate text as a PNG image (for title slide when text mode is selected)
+export function generateTextImage(text: string): Promise<Blob> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    
+    // Set canvas size
+    canvas.width = 800;
+    canvas.height = 200;
+    
+    // Transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Configure text style (white text to match the blue slide background)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Draw text
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    canvas.toBlob((blob) => {
+      resolve(blob!);
+    }, 'image/png');
+  });
+}
+
+// Fetch image from URL and convert to Blob using canvas (works around CORS for many images)
+export function fetchImageViaCanvas(imageUrl: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to convert to blob'));
+      }, 'image/png');
+    };
+    
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = imageUrl;
+  });
+}
+
 export async function copyTemplate(
   accessToken: string,
   clientType: string,
@@ -71,16 +135,26 @@ export async function copyTemplate(
   return id;
 }
 
+interface UpdateSlidesParams {
+  txImgId: string;
+  offImgId: string;
+  kybImgId: string;
+  logoImgId?: string | null;
+  logoUrl?: string | null;  // For external URLs (from website)
+  titleMode: TitleMode;
+}
+
 export async function updateSlides(
   accessToken: string,
   deckId: string,
   clientName: string,
   localCurrency: string,
-  imageIds: { txImgId: string; offImgId: string; kybImgId: string }
+  params: UpdateSlidesParams
 ): Promise<void> {
-  const { txImgId, offImgId, kybImgId } = imageIds;
+  const { txImgId, offImgId, kybImgId, logoImgId, logoUrl, titleMode } = params;
 
-  const requests = [
+  // First batch: text replacements and diagram images
+  const requests: any[] = [
     {
       replaceAllText: {
         containsText: { text: '{{PSP_NAME}}', matchCase: true },
@@ -128,6 +202,36 @@ export async function updateSlides(
     },
   ];
 
+  // Handle title slide logo/text
+  if (logoImgId) {
+    // Uploaded to Drive (text image or uploaded logo) - most reliable
+    requests.push({
+      replaceAllShapesWithImage: {
+        imageUrl: `https://drive.google.com/uc?id=${logoImgId}`,
+        replaceMethod: 'CENTER_INSIDE',
+        containsText: { text: '[[IMG:CLIENT_LOGO]]', matchCase: false },
+      },
+    });
+  } else if (logoUrl) {
+    // External URL (from website) - try this
+    requests.push({
+      replaceAllShapesWithImage: {
+        imageUrl: logoUrl,
+        replaceMethod: 'CENTER_INSIDE',
+        containsText: { text: '[[IMG:CLIENT_LOGO]]', matchCase: false },
+      },
+    });
+  }
+
+  // Always add text fallback at the end - this will replace any remaining [[IMG:CLIENT_LOGO]] 
+  // placeholders that weren't replaced by image (either because it's a text box or image failed)
+  requests.push({
+    replaceAllText: {
+      containsText: { text: '[[IMG:CLIENT_LOGO]]', matchCase: false },
+      replaceText: clientName,
+    },
+  });
+
   await fetch(
     `https://slides.googleapis.com/v1/presentations/${deckId}:batchUpdate`,
     {
@@ -141,9 +245,7 @@ export async function updateSlides(
   );
 }
 
-export function initGoogleAuth(
-  onSuccess: (token: string) => void
-): void {
+export function initGoogleAuth(onSuccess: (token: string) => void): void {
   const client = window.google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.clientId,
     scope: CONFIG.scopes,
