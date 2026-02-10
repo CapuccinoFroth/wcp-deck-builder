@@ -23,7 +23,7 @@ sequenceDiagram
     participant WCPay as WC Pay Engine
     participant Chain as Merchant Transit Acc
     Shopper ->> PSP: Choose WalletConnect Pay
-    PSP ->> WCPay: Create payment<br/> embedded (amount, reference)
+    PSP ->> WCPay: Create payment embedded<br/>(amount, reference)
     WCPay -->> PSP: paymentId + QR
     PSP ->> Shopper: Show QR
     Shopper ->> Wallet: Scan QR
@@ -62,10 +62,10 @@ sequenceDiagram
     participant OffRamp as ${offRampLabel}<br/>(Liquidity Account)
     participant M as Merchant
     participant Bank as ${curr} Bank Rails
-    Note over chain,WCP: User payment<br/>settles on-chain<br/>into WC Pay Transit
+    Note over chain,WCP: User payment settles<br/>on-chain into WC Pay Transit
     chain-->>WCP: Transfer confirmed<br/>(funds in Transit Acc)
     Note over WCP,OffRamp: Batch settlement (T+0 / T+1)
-    WCP->>OffRamp: Transfer stablecoin (e.g. USDC)<br/>Transit → ${offRampLabel} Liquidity
+    WCP->>OffRamp: Transfer stablecoin<br/>(e.g. USDC) to Liquidity
     OffRamp-->>WCP: Transfer confirmed
     alt Crypto settlement
         OffRamp->>M: Send crypto to merchant wallet
@@ -84,7 +84,7 @@ export function generateKybDiagram({ clientName, clientType, offRampProvider }: 
   } else if ((clientType === 'type2a' || clientType === 'type2b') && offRampProvider === 'wcp') {
     offRampLabel = 'Off-Ramp Provider (KYB)';
   } else {
-    offRampLabel = `${name} (KYB)`;
+    offRampLabel = name + ' (KYB)';
   }
 
   return `${MERMAID_THEME}
@@ -94,7 +94,7 @@ sequenceDiagram
     participant WC_Dashboard as WC Pay Dashboard
     participant WC_Core as WC Pay Core
     participant OffRamp as ${offRampLabel}
-    Merchant->>WC_Dashboard: Create account (email/password)
+    Merchant->>WC_Dashboard: Create account<br/>(email/password)
     WC_Dashboard->>WC_Core: Create WC Pay Merchant ID
     WC_Dashboard->>OffRamp: Request liquidation account
     OffRamp-->>WC_Core: Liquidation account created
