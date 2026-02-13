@@ -137,7 +137,6 @@ export default function WCPDeckBuilder() {
       ]);
 
       let logoImgId: string | null = null;
-      let logoUrl: string | null = null;
       
       if (titleMode === 'text') {
         setStatusMsg('Generating title text...');
@@ -151,8 +150,8 @@ export default function WCPDeckBuilder() {
         setStatusMsg('Fetching logo from website...');
         for (const url of fetchedLogo) {
           try {
+            // Try client-side canvas first (fast, no proxy needed)
             const logoBlob = await fetchImageViaCanvas(url);
-            // Convert blob to data URL, apply background removal, then convert back
             const reader = new FileReader();
             const dataUrl = await new Promise<string>((resolve) => {
               reader.onload = () => resolve(reader.result as string);
@@ -162,24 +161,39 @@ export default function WCPDeckBuilder() {
             const transparentBlob = dataUrlToBlob(transparentDataUrl);
             logoImgId = await uploadImageToDrive(accessToken, transparentBlob, `${clientName}-logo.png`);
             break;
-          } catch { continue; }
+          } catch {
+            // Canvas failed (CORS) — try server-side proxy
+            try {
+              const proxyRes = await fetch(`/api/fetch-image?url=${encodeURIComponent(url)}`);
+              if (!proxyRes.ok) continue;
+              const logoBlob = await proxyRes.blob();
+              const reader = new FileReader();
+              const dataUrl = await new Promise<string>((resolve) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(logoBlob);
+              });
+              const transparentDataUrl = await removeBackground(dataUrl);
+              const transparentBlob = dataUrlToBlob(transparentDataUrl);
+              logoImgId = await uploadImageToDrive(accessToken, transparentBlob, `${clientName}-logo.png`);
+              break;
+            } catch { continue; }
+          }
         }
-        if (!logoImgId) logoUrl = fetchedLogo[0];
       }
 
       setStatusMsg('Updating slides...');
-      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, logoUrl, titleMode });
+      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, titleMode });
       setCreatedDeckUrl(`https://docs.google.com/presentation/d/${deckId}/edit`);
     } catch (err: any) { setError(err.message || 'Failed'); }
     finally { setCreatingDeck(false); setStatusMsg(''); }
   };
 
   // Wallet Partners handler
-  const handleCreateWalletDeck = async (walletName: string, logoBlob: Blob | null) => {
+  const handleCreateWalletDeck = async (walletName: string, logoBlob: Blob | null, useTextName: boolean) => {
     if (!accessToken || !logoBlob) return;
     setWalletCreating(true); setWalletError(null); setWalletDeckUrl(null); setWalletStatusMsg('Creating deck...');
     try {
-      const deckUrl = await createWalletDeck(accessToken, walletName, logoBlob);
+      const deckUrl = await createWalletDeck(accessToken, walletName, logoBlob, useTextName);
       setWalletDeckUrl(deckUrl);
     } catch (err: any) { setWalletError(err.message || 'Failed to create deck'); }
     finally { setWalletCreating(false); setWalletStatusMsg(''); }
@@ -221,17 +235,17 @@ export default function WCPDeckBuilder() {
                   <select value={clientType} onChange={(e) => { setClientType(e.target.value); setGenerated(false); }} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500">
                     {CLIENT_TYPES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
                   </select>
-                  <p className="text-slate-500 text-xs mt-2">{CLIENT_TYPES.find(t => t.id === clientType)?.description}</p>
-                  {(clientType === 'type2a' || clientType === 'type2b') && (
-                    <div className="mt-3">
-                      <label className="block text-slate-300 text-sm font-medium mb-2">Who will do the off-ramping?</label>
-                      <select value={offRampProvider} onChange={(e) => { setOffRampProvider(e.target.value); setGenerated(false); }} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500">
-                        <option value="client">Client</option><option value="wcp">WCP</option>
-                      </select>
-                    </div>
-                  )}
                 </div>
               </div>
+              <p className="text-slate-500 text-xs mb-4 -mt-2">{CLIENT_TYPES.find(t => t.id === clientType)?.description}</p>
+              {(clientType === 'type2a' || clientType === 'type2b') && (
+                <div className="mb-4">
+                  <label className="block text-slate-300 text-sm font-medium mb-2">Who will do the off-ramping?</label>
+                  <select value={offRampProvider} onChange={(e) => { setOffRampProvider(e.target.value); setGenerated(false); }} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500">
+                    <option value="client">Client</option><option value="wcp">WCP</option>
+                  </select>
+                </div>
+              )}
               <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-slate-300 text-sm font-medium mb-2">Local Currency *</label>
@@ -239,7 +253,7 @@ export default function WCPDeckBuilder() {
                 </div>
                 <div>
                   <label className="block text-slate-300 text-sm font-medium mb-2">Template</label>
-                  <div className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 text-sm flex items-center gap-2"><Icons.Template />{TEMPLATE_LABELS[clientType]}</div>
+                  <div className="text-slate-400 text-sm flex items-center gap-2 pt-2"><Icons.Template />{TEMPLATE_LABELS[clientType]}</div>
                 </div>
               </div>
 

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
 
 interface WalletPartnersFormProps {
-  onCreateDeck: (walletName: string, logoBlob: Blob | null) => Promise<void>;
+  onCreateDeck: (walletName: string, logoBlob: Blob | null, useTextName: boolean) => Promise<void>;
   isCreating: boolean;
   accessToken: string | null;
   onGoogleLogin: () => void;
@@ -30,7 +30,10 @@ export function WalletPartnersForm({
   const [processedLogo, setProcessedLogo] = useState<Blob | null>(null);
   const [processing, setProcessing] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [useTextName, setUseTextName] = useState(true);
+  const [highlightUpload, setHighlightUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLDivElement>(null);
 
   // Reset generated state when logo or name changes
   useEffect(() => {
@@ -96,6 +99,15 @@ export function WalletPartnersForm({
     }
   };
 
+  const handleUseLogo = () => {
+    setUseTextName(false);
+    if (!logoPreview) {
+      setHighlightUpload(true);
+      setTimeout(() => setHighlightUpload(false), 2000);
+      uploadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const clearLogo = () => {
     setLogoPreview(null);
     setProcessedLogo(null);
@@ -113,16 +125,22 @@ export function WalletPartnersForm({
   };
 
   const handleGenerate = () => {
-    if (walletName.trim() && processedLogo) {
+    if (walletName.trim()) {
       setGenerated(true);
     }
   };
 
   const handleCreate = () => {
-    if (walletName.trim() && processedLogo) {
-      onCreateDeck(walletName, processedLogo);
+    if (walletName.trim()) {
+      // If using text name, logo is optional; otherwise logo is required
+      if (useTextName || processedLogo) {
+        onCreateDeck(walletName, processedLogo, useTextName);
+      }
     }
   };
+  
+  // Check if we can create deck (need logo if not using text name)
+  const canCreateDeck = walletName.trim() && (useTextName || processedLogo);
 
   return (
     <div className="bg-slate-800/50 rounded-2xl p-5 mb-5 border border-slate-700">
@@ -138,7 +156,9 @@ export function WalletPartnersForm({
       </div>
 
       <div className="mb-4">
-        <label className="block text-slate-300 text-sm font-medium mb-2">Wallet Logo *</label>
+        <label className="block text-slate-300 text-sm font-medium mb-2">
+          Wallet Logo {!useTextName && <span className="text-slate-500">*</span>}
+        </label>
         <p className="text-slate-500 text-xs mb-3">Upload the wallet logo — white backgrounds will be made transparent automatically</p>
         
         <input
@@ -149,6 +169,7 @@ export function WalletPartnersForm({
           className="hidden"
         />
 
+        <div ref={uploadRef}>
         {logoPreview ? (
           <div className="flex items-center gap-3 bg-slate-900 border border-slate-600 rounded-lg px-3 py-3">
             <div className="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-slate-700 p-2">
@@ -186,24 +207,63 @@ export function WalletPartnersForm({
         ) : (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-slate-700 rounded-lg text-slate-400 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-500/5 text-sm transition-all"
+            className={`w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed rounded-lg text-sm transition-all ${
+              highlightUpload
+                ? 'border-blue-400 text-blue-400 bg-blue-500/10 ring-2 ring-blue-500/40 animate-pulse'
+                : 'border-slate-700 text-slate-400 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-500/5'
+            }`}
           >
             <Icons.Upload /> Click to upload wallet logo (PNG, JPG, SVG)
           </button>
         )}
+        </div>
+      </div>
+
+      {/* Logo vs Text Name Toggle */}
+      <div className="mb-4">
+        <label className="block text-slate-300 text-sm font-medium mb-2">Replace Logo Placeholder</label>
+        <div className="flex gap-3">
+          <button
+            onClick={handleUseLogo}
+            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition ${
+              !useTextName
+                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
+            }`}
+          >
+            <Icons.Image />
+            <span className="text-sm">Use Logo</span>
+            {!useTextName && <Icons.Check />}
+          </button>
+          <button
+            onClick={() => setUseTextName(true)}
+            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition ${
+              useTextName
+                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                : 'bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-500'
+            }`}
+          >
+            <Icons.Type />
+            <span className="text-sm">Use Text Name</span>
+            {useTextName && <Icons.Check />}
+          </button>
+        </div>
+        <p className="text-slate-500 text-xs mt-2">
+          Choose whether to use the logo image or &quot;{walletName || 'Wallet Name'}&quot; text for {'{{replace_w_logo}}'}
+        </p>
       </div>
 
       {/* Generate Preview Button */}
       <button
         onClick={handleGenerate}
-        disabled={!walletName.trim() || !processedLogo}
+        disabled={!walletName.trim()}
         className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 mb-4"
       >
         <Icons.Sparkles /> Generate Preview
       </button>
 
       {/* Slide Preview - only shown after Generate */}
-      {generated && logoPreview && (
+      {generated && (
         <div className="space-y-4">
           <div className="mb-4">
             <label className="block text-slate-300 text-sm font-medium mb-2">📌 Slide Preview</label>
@@ -233,9 +293,13 @@ export function WalletPartnersForm({
                   </svg>
                   <span className="text-blue-500 font-semibold">WalletConnect Pay</span>
                   <span className="text-slate-400">+</span>
-                  {/* Wallet logo */}
+                  {/* Wallet logo or text name */}
                   <div className="h-8 flex items-center">
-                    <img src={logoPreview} alt={walletName} className="max-h-8 object-contain" />
+                    {useTextName || !logoPreview ? (
+                      <span className="font-semibold text-slate-800">{walletName}</span>
+                    ) : (
+                      <img src={logoPreview} alt={walletName} className="max-h-8 object-contain" />
+                    )}
                   </div>
                   <span className="ml-auto text-slate-400 text-xs">@ WalletConnect Pay</span>
                 </div>
@@ -252,7 +316,7 @@ export function WalletPartnersForm({
                 <div>
                   <h3 className="text-white font-semibold">Create Wallet Partner Deck</h3>
                   <p className="text-slate-400 text-sm">
-                    {statusMsg || 'Logo will be placed on every slide'}
+                    {statusMsg || (useTextName ? 'Text name will be placed on every slide' : (processedLogo ? 'Logo will be placed on every slide' : 'Upload a logo or switch to "Use Text Name"'))}
                   </p>
                 </div>
               </div>
@@ -275,7 +339,7 @@ export function WalletPartnersForm({
               ) : (
                 <button
                   onClick={handleCreate}
-                  disabled={isCreating}
+                  disabled={isCreating || !canCreateDeck}
                   className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:bg-slate-600 disabled:cursor-not-allowed"
                 >
                   {isCreating ? <Icons.Loader /> : <Icons.FileSliders />}
