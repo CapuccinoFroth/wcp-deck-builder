@@ -257,3 +257,53 @@ export function initGoogleAuth(onSuccess: (token: string) => void): void {
   });
   client.requestAccessToken();
 }
+
+// Create Wallet Partner deck
+export async function createWalletDeck(
+  accessToken: string,
+  walletName: string,
+  logoBlob: Blob
+): Promise<string> {
+  // 1. Copy template
+  const copyRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${CONFIG.templates.wallet}/copy`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: `WalletConnect Pay x ${walletName}` }),
+    }
+  );
+  if (!copyRes.ok) throw new Error('Failed to copy template');
+  const { id: deckId } = await copyRes.json();
+
+  // 2. Upload logo to Drive
+  const logoId = await uploadImageToDrive(accessToken, logoBlob, `${walletName}-logo.png`);
+
+  // 3. Replace placeholder with logo on all slides
+  const requests = [
+    {
+      replaceAllShapesWithImage: {
+        imageUrl: `https://drive.google.com/uc?id=${logoId}`,
+        replaceMethod: 'CENTER_INSIDE',
+        containsText: { text: '{{Replace_w_logo}}', matchCase: false },
+      },
+    },
+  ];
+
+  await fetch(
+    `https://slides.googleapis.com/v1/presentations/${deckId}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ requests }),
+    }
+  );
+
+  return `https://docs.google.com/presentation/d/${deckId}/edit`;
+}
