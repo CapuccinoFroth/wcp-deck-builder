@@ -1,6 +1,6 @@
 // lib/types.ts
 
-export type TitleMode = 'text' | 'website' | 'upload';
+export type LogoMode = 'website' | 'upload';
 export type ViewMode = 'preview' | 'code';
 export type OffRampProvider = 'client' | 'wcp';
 

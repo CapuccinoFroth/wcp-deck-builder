@@ -1,7 +1,7 @@
 // lib/googleApi.ts
 
 import { CONFIG, getTemplateId } from './config';
-import { GoogleUser, TitleMode } from './types';
+import { GoogleUser } from './types';
 
 export async function fetchUserInfo(token: string): Promise<GoogleUser> {
   const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -139,8 +139,8 @@ interface UpdateSlidesParams {
   txImgId: string;
   offImgId: string;
   kybImgId: string;
-  logoImgId?: string | null;
-  titleMode: TitleMode;
+  logoImgId?: string | null; // optional: logo image → [[IMG:CLIENT_LOGO_IMG]]
+  clientType: string;
 }
 
 export async function updateSlides(
@@ -150,7 +150,7 @@ export async function updateSlides(
   localCurrency: string,
   params: UpdateSlidesParams
 ): Promise<void> {
-  const { txImgId, offImgId, kybImgId, logoImgId, titleMode } = params;
+  const { txImgId, offImgId, kybImgId, logoImgId, clientType } = params;
 
   const driveImgUrl = (id: string) => `https://lh3.googleusercontent.com/d/${id}`;
 
@@ -184,7 +184,7 @@ export async function updateSlides(
     {
       replaceAllText: {
         containsText: { text: '{{PSP_name}}', matchCase: true },
-        replaceText: clientName,
+        replaceText: clientType === 'type3' ? 'PSP' : clientName,
       },
     },
     {
@@ -230,33 +230,34 @@ export async function updateSlides(
     console.error('Diagram image replacement failed:', err);
   }
 
-  // Batch 3: Logo image replacement (separate so its failure doesn't block diagrams)
-  let logoImageReplaced = false;
+  // Batch 3: Always replace {{CLIENT-TITLE-NAME}} with client name as text
+  await sendBatch([{
+    replaceAllText: {
+      containsText: { text: '{{CLIENT_TITLE_NAME}', matchCase: false },
+      replaceText: clientName,
+    },
+  }], 'client title name text');
+
+  // Batch 4: Replace [[IMG:CLIENT_LOGO_IMG]] with logo image if provided, else clear it
   if (logoImgId) {
     try {
       await sendBatch([{
         replaceAllShapesWithImage: {
           imageUrl: driveImgUrl(logoImgId),
           replaceMethod: 'CENTER_INSIDE',
-          containsText: { text: '[[IMG:CLIENT_LOGO]]', matchCase: false },
+          containsText: { text: '[[IMG:CLIENT_LOGO_IMG]]', matchCase: false },
         },
-      }], 'logo image');
-      logoImageReplaced = true;
+      }], 'client logo image');
     } catch (err) {
-      console.error('Logo image replacement failed:', err);
+      console.error('Client logo image replacement failed:', err);
     }
-  }
-
-  // Batch 4: Text fallback for CLIENT_LOGO — cleans up any remaining placeholder
-  if (!logoImageReplaced) {
-    await sendBatch([
-      {
-        replaceAllText: {
-          containsText: { text: '[[IMG:CLIENT_LOGO]]', matchCase: false },
-          replaceText: clientName,
-        },
+  } else {
+    await sendBatch([{
+      replaceAllText: {
+        containsText: { text: '[[IMG:CLIENT_LOGO_IMG]]', matchCase: false },
+        replaceText: '',
       },
-    ], 'logo text fallback');
+    }], 'client logo image cleanup');
   }
 }
 

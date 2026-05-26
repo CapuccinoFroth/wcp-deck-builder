@@ -7,10 +7,10 @@ import { DiagramPanel } from '@/components/DiagramPanel';
 import { ClientLogoSection } from '@/components/ClientLogoSection';
 import { WalletPartnersForm } from '@/components/WalletPartnersForm';
 import { CLIENT_TYPES, TEMPLATE_LABELS } from '@/lib/config';
-import { TitleMode, GoogleUser, ViewMode } from '@/lib/types';
+import { LogoMode, GoogleUser, ViewMode } from '@/lib/types';
 import { getLogoSources, extractDomain, removeBackground, svgToPngBlob } from '@/lib/utils';
 import { generateTxFlowDiagram, generateOffRampDiagram, generateKybDiagram } from '@/lib/diagrams';
-import { initGoogleAuth, fetchUserInfo, uploadImageToDrive, copyTemplate, updateSlides, dataUrlToBlob, generateTextImage, fetchImageViaCanvas, createWalletDeck } from '@/lib/googleApi';
+import { initGoogleAuth, fetchUserInfo, uploadImageToDrive, copyTemplate, updateSlides, dataUrlToBlob, fetchImageViaCanvas, createWalletDeck } from '@/lib/googleApi';
 
 export default function WCPDeckBuilder() {
   // Segment state
@@ -45,7 +45,8 @@ export default function WCPDeckBuilder() {
   const [walletStatusMsg, setWalletStatusMsg] = useState('');
 
   // Logo state (BD)
-  const [titleMode, setTitleMode] = useState<TitleMode>('text');
+  const [addLogoImage, setAddLogoImage] = useState(false);
+  const [logoMode, setLogoMode] = useState<LogoMode>('website');
   const [clientWebsite, setClientWebsite] = useState('');
   const [fetchedLogo, setFetchedLogo] = useState<string[] | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -136,37 +137,18 @@ export default function WCPDeckBuilder() {
         uploadImageToDrive(accessToken, await svgToPngBlob(kybC, 1600, 1080), `${clientName}-kyb.png`),
       ]);
 
+      // Optionally get logo image for [[IMG:CLIENT_LOGO_IMG]]
       let logoImgId: string | null = null;
-      
-      if (titleMode === 'text') {
-        setStatusMsg('Generating title text...');
-        const textBlob = await generateTextImage(clientName);
-        logoImgId = await uploadImageToDrive(accessToken, textBlob, `${clientName}-title-text.png`);
-      } else if (titleMode === 'upload' && processedLogo) {
-        setStatusMsg('Uploading client logo...');
-        const logoBlob = dataUrlToBlob(processedLogo);
-        logoImgId = await uploadImageToDrive(accessToken, logoBlob, `${clientName}-logo.png`);
-      } else if (titleMode === 'website' && fetchedLogo && fetchedLogo.length > 0) {
-        setStatusMsg('Fetching logo from website...');
-        for (const url of fetchedLogo) {
-          try {
-            // Try client-side canvas first (fast, no proxy needed)
-            const logoBlob = await fetchImageViaCanvas(url);
-            const reader = new FileReader();
-            const dataUrl = await new Promise<string>((resolve) => {
-              reader.onload = () => resolve(reader.result as string);
-              reader.readAsDataURL(logoBlob);
-            });
-            const transparentDataUrl = await removeBackground(dataUrl);
-            const transparentBlob = dataUrlToBlob(transparentDataUrl);
-            logoImgId = await uploadImageToDrive(accessToken, transparentBlob, `${clientName}-logo.png`);
-            break;
-          } catch {
-            // Canvas failed (CORS) — try server-side proxy
+      if (addLogoImage) {
+        if (logoMode === 'upload' && processedLogo) {
+          setStatusMsg('Uploading client logo...');
+          const logoBlob = dataUrlToBlob(processedLogo);
+          logoImgId = await uploadImageToDrive(accessToken, logoBlob, `${clientName}-logo.png`);
+        } else if (logoMode === 'website' && fetchedLogo && fetchedLogo.length > 0) {
+          setStatusMsg('Fetching logo from website...');
+          for (const url of fetchedLogo) {
             try {
-              const proxyRes = await fetch(`/api/fetch-image?url=${encodeURIComponent(url)}`);
-              if (!proxyRes.ok) continue;
-              const logoBlob = await proxyRes.blob();
+              const logoBlob = await fetchImageViaCanvas(url);
               const reader = new FileReader();
               const dataUrl = await new Promise<string>((resolve) => {
                 reader.onload = () => resolve(reader.result as string);
@@ -176,13 +158,28 @@ export default function WCPDeckBuilder() {
               const transparentBlob = dataUrlToBlob(transparentDataUrl);
               logoImgId = await uploadImageToDrive(accessToken, transparentBlob, `${clientName}-logo.png`);
               break;
-            } catch { continue; }
+            } catch {
+              try {
+                const proxyRes = await fetch(`/api/fetch-image?url=${encodeURIComponent(url)}`);
+                if (!proxyRes.ok) continue;
+                const logoBlob = await proxyRes.blob();
+                const reader = new FileReader();
+                const dataUrl = await new Promise<string>((resolve) => {
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.readAsDataURL(logoBlob);
+                });
+                const transparentDataUrl = await removeBackground(dataUrl);
+                const transparentBlob = dataUrlToBlob(transparentDataUrl);
+                logoImgId = await uploadImageToDrive(accessToken, transparentBlob, `${clientName}-logo.png`);
+                break;
+              } catch { continue; }
+            }
           }
         }
       }
 
       setStatusMsg('Updating slides...');
-      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, titleMode });
+      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, clientType });
       setCreatedDeckUrl(`https://docs.google.com/presentation/d/${deckId}/edit`);
     } catch (err: any) { setError(err.message || 'Failed'); }
     finally { setCreatingDeck(false); setStatusMsg(''); }
@@ -257,7 +254,7 @@ export default function WCPDeckBuilder() {
                 </div>
               </div>
 
-              <ClientLogoSection clientName={clientName} titleMode={titleMode} setTitleMode={setTitleMode} clientWebsite={clientWebsite} setClientWebsite={setClientWebsite} fetchedLogo={fetchedLogo} setFetchedLogo={setFetchedLogo} processedLogo={processedLogo} processing={processing} logoError={logoError} setLogoError={setLogoError} onFetchLogo={fetchClientLogo} onFileUpload={handleFileUpload} onClearUpload={clearUploadedLogo} onDownloadLogo={downloadProcessedLogo} />
+              <ClientLogoSection clientName={clientName} addLogoImage={addLogoImage} setAddLogoImage={setAddLogoImage} logoMode={logoMode} setLogoMode={setLogoMode} clientWebsite={clientWebsite} setClientWebsite={setClientWebsite} fetchedLogo={fetchedLogo} setFetchedLogo={setFetchedLogo} processedLogo={processedLogo} processing={processing} logoError={logoError} setLogoError={setLogoError} onFetchLogo={fetchClientLogo} onFileUpload={handleFileUpload} onClearUpload={clearUploadedLogo} onDownloadLogo={downloadProcessedLogo} />
 
               <button onClick={() => { if (clientName.trim()) { setGenerated(true); setCreatedDeckUrl(null); } }} disabled={!clientName.trim()} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
                 <Icons.Sparkles /> Generate Deck Assets
@@ -269,7 +266,7 @@ export default function WCPDeckBuilder() {
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-2xl p-5 border border-green-500/30">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3"><div className="text-green-400"><Icons.FileSliders /></div><div><h3 className="text-white font-semibold">Create Google Slides Deck</h3><p className="text-slate-400 text-sm">{statusMsg || `Using ${TEMPLATE_LABELS[clientType]} • Logo: ${titleMode === 'text' ? 'Text' : titleMode === 'website' ? 'From website' : 'Uploaded'}`}</p></div></div>
+                    <div className="flex items-center gap-3"><div className="text-green-400"><Icons.FileSliders /></div><div><h3 className="text-white font-semibold">Create Google Slides Deck</h3><p className="text-slate-400 text-sm">{statusMsg || `Using ${TEMPLATE_LABELS[clientType]} • Logo: Text${addLogoImage ? ` + ${logoMode === 'website' ? 'website image' : 'uploaded image'}` : ''}`}</p></div></div>
                     {!accessToken ? <button onClick={handleGoogleLogin} className="flex items-center gap-2 bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-medium"><Icons.LogIn /> Connect Google</button>
                     : createdDeckUrl ? <a href={createdDeckUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium"><Icons.ExternalLink /> Open Deck</a>
                     : <button onClick={createBDDeck} disabled={creatingDeck} className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:bg-slate-600">{creatingDeck ? <Icons.Loader /> : <Icons.FileSliders />} {creatingDeck ? 'Creating...' : 'Create Deck'}</button>}

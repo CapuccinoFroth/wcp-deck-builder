@@ -17,28 +17,36 @@ export function generateTxFlowDiagram({ clientName, clientType }: DiagramParams)
   return `${MERMAID_THEME}
 sequenceDiagram
     autonumber
+
     participant Shopper
     participant Wallet
+    participant Merchant
     participant PSP as ${psp}
     participant WCPay as WC Pay Engine
     participant Chain as Merchant Transit Acc
-    Shopper ->> PSP: Choose WalletConnect Pay
-    PSP ->> WCPay: Create payment embedded<br/>(amount, reference)
+
+    Shopper ->> Merchant: Choose WalletConnect Pay
+    Merchant ->> PSP: Create payment request
+    PSP ->> WCPay: Create payment<br/>(amount, reference)
     WCPay -->> PSP: paymentId + QR
-    PSP ->> Shopper: Show QR
+    PSP -->> Merchant: Return QR + paymentId
+    Merchant ->> Shopper: Show QR
     Shopper ->> Wallet: Scan QR
-    Wallet ->> WCPay: Fetch payment details
-    WCPay -->> Wallet: Options +<br/>any required steps
-    opt Data collection / screening required
-        Shopper ->> Wallet: Provide info
-        Wallet ->> WCPay: Submit results
-    end
+
+    Wallet ->> WCPay: Fetch payment details (Tokens/Chains accepted by Merchant)
+    WCPay -->> Wallet: Collect user's data for screening
+    Shopper ->> Wallet: Provide info <br/>(user's data + token/chain to pay)
+    Wallet ->> WCPay: Submit results
+
     Wallet ->> WCPay: Approve + confirm payment<br/>(signature)
+
     WCPay ->> Chain: Relay on-chain transaction
     Chain -->> WCPay: Confirmed
+
     PSP ->> WCPay: Check final status
     WCPay -->> PSP: succeeded / failed / expired
-    PSP ->> Shopper: Show result`;
+    PSP -->> Merchant: Payment status update
+    Merchant ->> Shopper: Show result`;
 }
 
 export function generateOffRampDiagram({ clientName, clientType, localCurrency, offRampProvider }: DiagramParams): string {
@@ -64,7 +72,7 @@ sequenceDiagram
     participant Bank as ${curr} Bank Rails
     Note over chain,WCP: User payment settles<br/>on-chain into WC Pay Transit
     chain-->>WCP: Transfer confirmed<br/>(funds in Transit Acc)
-    Note over WCP,OffRamp: Batch settlement (T+0 / T+1)
+    Note over WCP,OffRamp: Immediate or Batch settlement 
     WCP->>OffRamp: Transfer stablecoin<br/>(e.g. USDC) to Liquidity
     OffRamp-->>WCP: Transfer confirmed
     alt Crypto settlement

@@ -3,8 +3,8 @@
 export const CONFIG = {
   clientId: '931056766416-dtq4re68d9o0p1ih5iun55u8jt7b5kjp.apps.googleusercontent.com',
   templates: {
-    type1: '1BJ3kyDPPQXEzywYajaIQsybx9yFlZwT-Hw7oZXZa1Gk',
-    type2: '1LKxo5vc7F43fGzsikv9-exB6_DQfvGRHoxNi8WIOK-s',
+    type1: '1Gz1r3iJPz_nSnieBxFJ0lAQanym71YuG31N71JEQfP4',
+    type2: '19oMcQMquVSDvCT9fxLs7Um67KgM8fi5OEIOaXqYzpSU',
     wallet: '14uju8V0Dy_bCJ416wBCbdritLfMNIuGqX-z1cXi-ihk',
   },
   scopes: 'https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/drive',
