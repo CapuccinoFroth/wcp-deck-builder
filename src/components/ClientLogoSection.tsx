@@ -54,6 +54,9 @@ export function ClientLogoSection({
 
   return (
     <div className="mb-4">
+      <div className="mb-3">
+        <span className="text-blue-400 text-xs font-semibold">5. CLIENT LOGO</span>
+      </div>
       <label className="block text-slate-300 text-sm font-medium mb-3">
         Client Logo for Title Slide
       </label>

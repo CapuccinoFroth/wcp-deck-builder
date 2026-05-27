@@ -22,6 +22,20 @@ export default function WCPDeckBuilder() {
   const [localCurrency, setLocalCurrency] = useState('USD');
   const [offRampProvider, setOffRampProvider] = useState('client');
   const [generated, setGenerated] = useState(false);
+  
+  // Integration contact fields
+  const [useLoreContact, setUseLoreContact] = useState(true);
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactRole, setContactRole] = useState('');
+  
+  // Thank you slide contact
+  const [contact2Email, setContact2Email] = useState('');
+  
+  // Get effective contact values (Lore defaults or custom)
+  const effectiveContactName = useLoreContact ? 'Lore' : contactName;
+  const effectiveContactEmail = useLoreContact ? 'lore@walletconnect.com' : contactEmail;
+  const effectiveContactRole = useLoreContact ? 'Solutions Engineer' : contactRole;
 
   // UI state
   const [copied, setCopied] = useState({ tx: false, offramp: false, kyb: false });
@@ -179,7 +193,7 @@ export default function WCPDeckBuilder() {
       }
 
       setStatusMsg('Updating slides...');
-      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, clientType });
+      await updateSlides(accessToken, deckId, clientName, localCurrency, { txImgId: txId, offImgId: offId, kybImgId: kybId, logoImgId, clientType, contactName: effectiveContactName, contactEmail: effectiveContactEmail, contactRole: effectiveContactRole, contact2Email });
       setCreatedDeckUrl(`https://docs.google.com/presentation/d/${deckId}/edit`);
     } catch (err: any) { setError(err.message || 'Failed'); }
     finally { setCreatingDeck(false); setStatusMsg(''); }
@@ -222,6 +236,10 @@ export default function WCPDeckBuilder() {
         {segment === 'bd' && (
           <>
             <div className="bg-slate-800/50 rounded-2xl p-5 mb-5 border border-slate-700">
+              {/* Section 1: Client Info & Template */}
+              <div className="mb-4">
+                <span className="text-blue-400 text-xs font-semibold">1. CLIENT INFO & TEMPLATE</span>
+              </div>
               <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-slate-300 text-sm font-medium mb-2">Client / PSP Name *</label>
@@ -243,6 +261,13 @@ export default function WCPDeckBuilder() {
                   </select>
                 </div>
               )}
+              <div className="border-b border-slate-700 mb-4 pb-4"></div>
+              
+              {/* Section 2: Currency */}
+              <div className="mb-3">
+                <span className="text-blue-400 text-xs font-semibold">2. CURRENCY</span>
+              </div>
+              <p className="text-slate-500 text-xs mb-4">What is the fiat currency the merchant would like to receive in?</p>
               <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-slate-300 text-sm font-medium mb-2">Local Currency *</label>
@@ -254,9 +279,78 @@ export default function WCPDeckBuilder() {
                 </div>
               </div>
 
+              {/* Section 3: Integration Contact */}
+              <div className="border-t border-b border-slate-700 pt-4 mt-4 mb-4 pb-4">
+                <div className="mb-3">
+                  <span className="text-blue-400 text-xs font-semibold">3. WCP INTEGRATION CONTACT</span>
+                </div>
+                <p className="text-slate-500 text-xs mb-4">Please add an integration contact. This will appear in slide section &quot;08 Next Steps&quot; of the deck.</p>
+                
+                {/* Radio options for contact selection */}
+                <div className="space-y-3">
+                  {/* Option 1: Lore (default) */}
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="contactOption"
+                      checked={useLoreContact}
+                      onChange={() => setUseLoreContact(true)}
+                      className="w-4 h-4 border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+                    />
+                    <span className="text-slate-300 text-sm group-hover:text-white transition-colors">
+                      Lore <span className="text-slate-500">(lore@walletconnect.com • Solutions Engineer)</span>
+                    </span>
+                  </label>
+
+                  {/* Option 2: Add new person */}
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="contactOption"
+                      checked={!useLoreContact}
+                      onChange={() => setUseLoreContact(false)}
+                      className="w-4 h-4 border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+                    />
+                    <span className="text-slate-300 text-sm group-hover:text-white transition-colors">
+                      Add a different contact
+                    </span>
+                  </label>
+                </div>
+
+                {/* Custom contact fields - only shown when "Add a different contact" is selected */}
+                {!useLoreContact && (
+                  <div className="grid md:grid-cols-3 gap-4 mt-4 ml-7 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <div>
+                      <label className="block text-slate-400 text-xs mb-1">Name *</label>
+                      <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="e.g., John Doe" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-xs mb-1">Email *</label>
+                      <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g., john@company.com" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-xs mb-1">Role *</label>
+                      <input type="text" value={contactRole} onChange={(e) => setContactRole(e.target.value)} placeholder="e.g., Solutions Engineer" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 4: Thank You Slide */}
+              <div className="border-b border-slate-700 pb-4 mb-4">
+                <div className="mb-3">
+                  <span className="text-blue-400 text-xs font-semibold">4. THANK YOU SLIDE</span>
+                </div>
+                <p className="text-slate-500 text-xs mb-3">Contact email that will appear on the final &quot;Thank You&quot; slide.</p>
+                <div className="max-w-md">
+                  <label className="block text-slate-400 text-xs mb-1">Email *</label>
+                  <input type="email" value={contact2Email} onChange={(e) => setContact2Email(e.target.value)} placeholder="e.g., contact@walletconnect.com" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+
               <ClientLogoSection clientName={clientName} addLogoImage={addLogoImage} setAddLogoImage={setAddLogoImage} logoMode={logoMode} setLogoMode={setLogoMode} clientWebsite={clientWebsite} setClientWebsite={setClientWebsite} fetchedLogo={fetchedLogo} setFetchedLogo={setFetchedLogo} processedLogo={processedLogo} processing={processing} logoError={logoError} setLogoError={setLogoError} onFetchLogo={fetchClientLogo} onFileUpload={handleFileUpload} onClearUpload={clearUploadedLogo} onDownloadLogo={downloadProcessedLogo} />
 
-              <button onClick={() => { if (clientName.trim()) { setGenerated(true); setCreatedDeckUrl(null); } }} disabled={!clientName.trim()} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
+              <button onClick={() => { if (clientName.trim() && contact2Email.trim() && (useLoreContact || (contactName.trim() && contactEmail.trim() && contactRole.trim()))) { setGenerated(true); setCreatedDeckUrl(null); } }} disabled={!clientName.trim() || !contact2Email.trim() || (!useLoreContact && (!contactName.trim() || !contactEmail.trim() || !contactRole.trim()))} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
                 <Icons.Sparkles /> Generate Deck Assets
               </button>
             </div>
