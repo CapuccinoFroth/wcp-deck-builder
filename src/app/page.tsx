@@ -282,7 +282,7 @@ export default function WCPDeckBuilder() {
                 <div className="mb-3">
                   <span className="text-blue-400 text-xs font-semibold">3. WCP INTEGRATION CONTACT</span>
                 </div>
-                <p className="text-slate-500 text-xs mb-4">Please add an integration contact. This will appear in slide section &quot;08 Next Steps&quot; of the deck.</p>
+                <p className="text-slate-500 text-xs mb-4">Please add an integration contact. This will appear in slide section &quot;09 Next Steps&quot; of the deck.</p>
                 
                 {/* Radio options for contact selection */}
                 <div className="space-y-3">
