@@ -252,7 +252,11 @@ export default function WCPDeckBuilder() {
                   </select>
                 </div>
               </div>
-              <p className="text-slate-500 text-xs mb-4 -mt-2">{CLIENT_TYPES.find(t => t.id === clientType)?.description}</p>
+              <p className="text-slate-500 text-xs mb-2 -mt-2">{CLIENT_TYPES.find(t => t.id === clientType)?.description}</p>
+             {/* <div className="flex items-center gap-2 mb-4 text-slate-400 text-sm">
+                <Icons.Template />
+                <span>Template: <span className="text-slate-300">{TEMPLATE_LABELS[clientType]}</span></span>
+              </div>*}
               {(clientType === 'type2a' || clientType === 'type2b') && (
                 <div className="mb-4">
                   <label className="block text-slate-300 text-sm font-medium mb-2">Who will do the off-ramping?</label>
@@ -261,22 +265,16 @@ export default function WCPDeckBuilder() {
                   </select>
                 </div>
               )}
-              <div className="border-b border-slate-700 mb-4 pb-4"></div>
+              <div className="border-b border-slate-700 mb-4 pb-4"></div>*/}
               
               {/* Section 2: Currency */}
               <div className="mb-3">
                 <span className="text-blue-400 text-xs font-semibold">2. CURRENCY</span>
               </div>
               <p className="text-slate-500 text-xs mb-4">What is the fiat currency the merchant would like to receive in?</p>
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">Local Currency *</label>
-                  <input type="text" value={localCurrency} onChange={(e) => { setLocalCurrency(e.target.value); setGenerated(false); }} placeholder="e.g., USD, ZAR" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">Template</label>
-                  <div className="text-slate-400 text-sm flex items-center gap-2 pt-2"><Icons.Template />{TEMPLATE_LABELS[clientType]}</div>
-                </div>
+              <div className="mb-4">
+                <label className="block text-slate-300 text-sm font-medium mb-2">Local Currency *</label>
+                <input type="text" value={localCurrency} onChange={(e) => { setLocalCurrency(e.target.value); setGenerated(false); }} placeholder="e.g., USD, ZAR" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 max-w-md" />
               </div>
 
               {/* Section 3: Integration Contact */}

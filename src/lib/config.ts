@@ -11,7 +11,7 @@ export const CONFIG = {
 };
 
 export const CLIENT_TYPES = [
-  { id: 'type1', label: 'Type 1: No Crypto', description: 'Payments companies with NO crypto capabilities (e.g., Ingenico) - we own the entire flow' },
+  { id: 'type1', label: 'Type 1: No crypto payments and no offramp today', description: 'Payments companies with NO crypto capabilities (e.g., Ingenico) - we own the entire flow' },
   { id: 'type2a', label: 'Type 2a: Offers crypto payments to merchants - needs improvements', description: 'Payments companies with SOME crypto capabilities (e.g., Ezeebit) - they already have merchants using crypto for payments and want to improve their offering with better UX, typically have licences for off-ramping' },
   { id: 'type2b', label: 'Type 2b: Neobanks, crypto-platform (no merchant payment offering yet)', description: 'Off-ramps / B2B payments companies (e.g., Banks) - well versed in crypto, typically have licences, but don\'t yet offer crypto payments to merchants. They may offer crypto custody and want to expand their product offering and generate more revenue' },
   { id: 'type3', label: 'Type 3: Distribution partners, hardware, crypto service providers', description: 'Hardware manufacturers (e.g., Imin, Lunu) or Stablecoin issuers/Chains - channel partners who push WCP to acquirers' },
