@@ -115,10 +115,9 @@ export function fetchImageViaCanvas(imageUrl: string): Promise<Blob> {
 
 export async function copyTemplate(
   accessToken: string,
-  clientType: string,
   clientName: string
 ): Promise<string> {
-  const templateId = getTemplateId(clientType);
+  const templateId = getTemplateId();
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
     {
@@ -300,63 +299,4 @@ export function initGoogleAuth(onSuccess: (token: string) => void): void {
     },
   });
   client.requestAccessToken();
-}
-
-// Create Wallet Partner deck
-export async function createWalletDeck(
-  accessToken: string,
-  walletName: string,
-  logoBlob: Blob,
-  useTextName: boolean = false
-): Promise<string> {
-  // 1. Copy template
-  const copyRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${CONFIG.templates.wallet}/copy`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name: `WalletConnect Pay x ${walletName}` }),
-    }
-  );
-  if (!copyRes.ok) throw new Error('Failed to copy template');
-  const { id: deckId } = await copyRes.json();
-
-  const requests: any[] = [];
-
-  if (useTextName) {
-    // Use text replacement for {{Replace_w_logo}}
-    requests.push({
-      replaceAllText: {
-        containsText: { text: '{{Replace_w_logo}}', matchCase: false },
-        replaceText: walletName,
-      },
-    });
-  } else {
-    // Upload logo to Drive and replace with image
-    const logoId = await uploadImageToDrive(accessToken, logoBlob, `${walletName}-logo.png`);
-    requests.push({
-      replaceAllShapesWithImage: {
-        imageUrl: `https://lh3.googleusercontent.com/d/${logoId}`,
-        replaceMethod: 'CENTER_INSIDE',
-        containsText: { text: '{{Replace_w_logo}}', matchCase: false },
-      },
-    });
-  }
-
-  await fetch(
-    `https://slides.googleapis.com/v1/presentations/${deckId}:batchUpdate`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ requests }),
-    }
-  );
-
-  return `https://docs.google.com/presentation/d/${deckId}/edit`;
 }

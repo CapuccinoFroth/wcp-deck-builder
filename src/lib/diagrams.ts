@@ -7,80 +7,136 @@ interface DiagramParams {
   clientType: string;
   localCurrency: string;
   offRampProvider: string;
+  type2Flow: string;
 }
 
 export function generateTxFlowDiagram({ clientName, clientType }: DiagramParams): string {
-  const psp = (clientType === 'type1' || clientType === 'type2a' || clientType === 'type2b') 
-    ? (clientName || 'PSP') 
-    : 'PSP';
-    
-  return `${MERMAID_THEME}
+  if (clientType !== 'type4') {
+    const psp = clientType === 'type3' ? 'PSP' : (clientName || 'PSP');
+    return `${MERMAID_THEME}
 sequenceDiagram
     autonumber
 
-    participant Shopper
-    participant Wallet
-    participant Merchant
+    participant User as Shopper
+    participant Merchant as Merchant
     participant PSP as ${psp}
-    participant WCPay as WC Pay Engine
-    participant Chain as Merchant Transit Acc
+    participant WCP as WalletConnect Pay
+    participant Wallet as User Wallet
+    participant MTA as MTA (Blockchain)
 
-    Shopper ->> Merchant: Choose WalletConnect Pay
-    Merchant ->> PSP: Create payment request
-    PSP ->> WCPay: Create payment<br/>(amount, reference)
-    WCPay -->> PSP: paymentId + QR
-    PSP -->> Merchant: Return QR + paymentId
-    Merchant ->> Shopper: Show QR
-    Shopper ->> Wallet: Scan QR
+    %% Checkout
+    User ->> Merchant: Start checkout
+    Merchant ->> User: Show payment methods
+    User ->> Merchant: Select crypto payment
 
-    Wallet ->> WCPay: Fetch payment details (Tokens/Chains accepted by Merchant)
-    WCPay -->> Wallet: Collect user's data for screening
-    Shopper ->> Wallet: Provide info <br/>(user's data + token/chain to pay)
-    Wallet ->> WCPay: Submit results
+    %% Payment creation
+    Merchant ->> PSP: Create payment<br/>(referenceId, fiatAmount)
+    PSP ->> WCP: createPayment(referenceId, fiatAmount)
+    WCP -->> PSP: paymentId + gatewayUrl<br/>(requires_action)
+    PSP -->> Merchant: Payment session / gatewayUrl
 
-    Wallet ->> WCPay: Approve + confirm payment<br/>(signature)
+    %% Wallet connection
+    Merchant ->> User: Display payment experience
+    User ->> WCP: Open gateway / scan QR
+    WCP ->> Wallet: Connect wallet
 
-    WCPay ->> Chain: Relay on-chain transaction
-    Chain -->> WCPay: Confirmed
+    %% Payment options
+    WCP ->> WCP: Determine available<br/>chains, tokens & routes
+    WCP -->> Wallet: Present payment options
+    User ->> Wallet: Select option & approve payment
 
-    PSP ->> WCPay: Check final status
-    WCPay -->> PSP: succeeded / failed / expired
-    PSP -->> Merchant: Payment status update
-    Merchant ->> Shopper: Show result`;
-}
+    %% Authorization
+    Wallet ->> WCP: Sign off-chain<br/>payment authorization
 
-export function generateOffRampDiagram({ clientName, clientType, localCurrency, offRampProvider }: DiagramParams): string {
-  const curr = localCurrency || 'USD';
-  const name = clientName || 'PSP';
-  
-  let offRampLabel: string;
-  if (clientType === 'type1' || clientType === 'type3') {
-    offRampLabel = '3rd Party Off-Ramp';
-  } else if ((clientType === 'type2a' || clientType === 'type2b') && offRampProvider === 'wcp') {
-    offRampLabel = 'Off-Ramp Provider';
-  } else {
-    offRampLabel = name;
+    %% On-chain execution
+    WCP ->> MTA: Relayer constructs &<br/>broadcasts transaction
+    MTA -->> WCP: Transaction confirmed
+
+    %% Status
+    WCP -->> PSP: Get payment status / webhook
+    PSP -->> Merchant: Payment confirmed
+    Merchant -->> User: Payment successful`;
   }
 
+  const merchant = clientName || 'Merchant';
   return `${MERMAID_THEME}
 sequenceDiagram
     autonumber
-    participant chain as Blockchain
-    participant WCP as WC Pay<br/>(Relayer + MTA)
+
+    participant User as Shopper
+    participant Merchant as ${merchant}
+    participant WCP as WalletConnect Pay
+    participant Wallet as User Wallet
+    participant MTA as MTA (Blockchain)
+
+    %% Checkout
+    User ->> Merchant: Start checkout
+    Merchant ->> User: Show payment methods
+    User ->> Merchant: Select crypto payment
+
+    %% Payment creation
+    Merchant ->> WCP: createPayment(referenceId, fiatAmount)
+    WCP -->> Merchant: paymentId + gatewayUrl<br/>(requires_action)
+    Merchant ->> User: Display payment experience / QR
+
+    %% Wallet connection
+    User ->> WCP: Open gateway / scan QR
+    WCP ->> Wallet: Connect wallet
+
+    %% Payment options
+    WCP ->> WCP: Determine available<br/>chains, tokens & routes
+    WCP -->> Wallet: Present payment options
+    User ->> Wallet: Select option & approve payment
+
+    %% Authorization
+    Wallet ->> WCP: Sign off-chain<br/>payment authorization
+
+    %% On-chain execution
+    WCP ->> MTA: Relayer constructs &<br/>broadcasts transaction
+    MTA -->> WCP: Transaction confirmed
+
+    %% Status
+    WCP -->> Merchant: Get payment status / webhook
+    Merchant -->> User: Payment successful`;
+}
+
+export function generateOffRampDiagram({ clientName, clientType, localCurrency, type2Flow }: DiagramParams): string {
+  const curr = localCurrency || 'USD';
+  const name = clientName || 'PSP';
+  const cryptoToCrypto = clientType === 'type2' && type2Flow === 'crypto-to-crypto';
+
+  let offRampLabel: string;
+  if (clientType === 'type1') {
+    offRampLabel = 'offramp';
+  } else if (clientType === 'type2') {
+    offRampLabel = name;
+  } else if (clientType === 'type3') {
+    offRampLabel = '3rd Party Off-Ramp';
+  } else {
+    offRampLabel = 'off-ramp';
+  }
+
+  const merchantLabel = clientType === 'type4' ? (clientName || 'Merchant') : 'Merchant';
+
+  return `${MERMAID_THEME}
+sequenceDiagram
+    autonumber
+    participant chain as WCP Relayer
+    participant WCP as MTA
     participant OffRamp as ${offRampLabel}<br/>(Liquidity Account)
-    participant M as Merchant
-    participant Bank as ${curr} Bank Rails
+    participant M as ${merchantLabel}${cryptoToCrypto ? '' : `
+    participant Bank as ${curr} Bank Rails`}
     Note over chain,WCP: User payment settles<br/>on-chain into WC Pay Transit
     chain-->>WCP: Transfer confirmed<br/>(funds in Transit Acc)
     Note over WCP,OffRamp: Immediate or Batch settlement 
     WCP->>OffRamp: Transfer stablecoin<br/>(e.g. USDC) to Liquidity
     OffRamp-->>WCP: Transfer confirmed
-    alt Crypto settlement
+    ${cryptoToCrypto ? `OffRamp->>M: Send crypto to merchant wallet` : `alt Crypto settlement
         OffRamp->>M: Send crypto to merchant wallet
     else Fiat settlement (${curr})
         OffRamp->>Bank: Send ${curr} fiat payout<br/>to merchant bank account
         Bank-->>M: Payout confirmation
-    end`;
+    end`}`;
 }
 
 export function generateKybDiagram({ clientName, clientType, offRampProvider }: DiagramParams): string {
@@ -89,7 +145,7 @@ export function generateKybDiagram({ clientName, clientType, offRampProvider }: 
   let offRampLabel: string;
   if (clientType === 'type1' || clientType === 'type3') {
     offRampLabel = 'OffRamp Provider (KYB)';
-  } else if ((clientType === 'type2a' || clientType === 'type2b') && offRampProvider === 'wcp') {
+  } else if (clientType === 'type2' && offRampProvider === 'wcp') {
     offRampLabel = 'Off-Ramp Provider (KYB)';
   } else {
     offRampLabel = name + ' (KYB)';
